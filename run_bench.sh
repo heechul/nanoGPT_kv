@@ -7,8 +7,8 @@ dtypes=("float32" "float16" "bfloat16")
 
 for dtype in "${dtypes[@]}"; do
     for device in "${devices[@]}"; do
-        echo -e "\nRunning sampling for device: ${device}, dtype: ${dtype}"
-        echo -e "Model Base +KV "
+        echo -e "\ndevice: ${device}, dtype: ${dtype}"
+        echo -e "Model, Base, +KV "
         for model in "${models[@]}"; do
             echo -n "${model} "
             for kv_cache in False True; do
@@ -21,7 +21,7 @@ for dtype in "${dtypes[@]}"; do
                     continue
                 fi
                 tops="$(grep 'Average tokens per second:' "${file}" | awk '{ print $5 }')"
-                echo -n "${tops} "
+                echo -n "${tops}, "
             done
             echo ""  # New line after each model
         done
