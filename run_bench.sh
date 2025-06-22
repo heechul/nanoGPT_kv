@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # Define the models and devices
-models=("gpt2" "gpt2-medium" "gpt2-large" "gpt2-xl")
-devices=("cuda" "cpu")
-dtypes=("float32" "float16" "bfloat16")
+models=("gpt2" "gpt2-medium" "gpt2-large" "gpt2-xl") # Pre-trained models to test
+devices=("cuda" "cpu") # "mps" "xpu" "hpu" can be added if supported
+dtypes=("float32" "float16" "bfloat16") # Define the data types to test
 
 for dtype in "${dtypes[@]}"; do
     for device in "${devices[@]}"; do
         echo -e "\ndevice: ${device}, dtype: ${dtype}"
         echo -e "Model, Base, +KV "
         for model in "${models[@]}"; do
-            echo -n "${model} "
+            echo -n "${model}, "
             for kv_cache in False True; do
                 file="${model}_${device}_${dtype}_kv_${kv_cache}_output.txt"
                 # Run the Python script with the specified parameters
