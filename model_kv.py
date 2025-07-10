@@ -188,14 +188,14 @@ class GPT(nn.Module):
         device = idx.device
         b, t = idx.size()
         assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
+        pos = torch.arange(0, t, dtype=torch.long, device=device) # shape (t)
 
-        # Determine the starting position for positional embeddings
-        past_length = 0
-        if past_kvs is not None and past_kvs[0] is not None:
-            past_length = past_kvs[0][0].size(2) # Get length from past_k tensor: (B, nh, T', hs)
-
-        # Correctly calculate position based on past length
-        pos = torch.arange(past_length, past_length + t, dtype=torch.long, device=device)
+        if past_kvs is None:
+            past_kvs = [None] * len(self.transformer.h)
+        else:
+            # if we are using the kv cache, we only need the last token
+            idx = idx[:, -1:] # if we are using the cache, we only need the last token
+            pos = pos[-1:] # and the last position
 
         # forward the GPT model itself
         tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
@@ -203,8 +203,6 @@ class GPT(nn.Module):
         x = self.transformer.drop(tok_emb + pos_emb)
 
         new_kvs = [] if use_cache else None
-        if past_kvs is None:
-            past_kvs = [None] * len(self.transformer.h)
 
         for i, block in enumerate(self.transformer.h):
             x, kv = block(x, past_kv=past_kvs[i], use_cache=use_cache)
@@ -348,13 +346,8 @@ class GPT(nn.Module):
         assert(max_new_tokens <= self.config.block_size), f"max_new_tokens {max_new_tokens} exceeds block size {self.config.block_size}"
         # idx is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
-            # If we have a cache, we only need to pass the last token
-            if past_kvs is not None:
-                idx_cond = idx[:, -1:]
-            else:
-                # On the first step, we process the full prompt
-                idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]
-
+            # if the sequence context is growing too long we must crop it at block_size
+            idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]
             # Always use the cache from the first step onwards
             logits, _, past_kvs = self(idx_cond, past_kvs=past_kvs, use_cache=True)
             # pluck the logits at the final step and scale by desired temperature
